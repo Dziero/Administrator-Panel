@@ -12,20 +12,21 @@ app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(
-  cookieSession({
-    name: "session",
-    keys: ["ajqwefk;efjweflkwfdacadfjadjkdqkasdadas"], // do zmiany 
-    maxAge: 24 * 60 * 60 * 1000,
-    secure: false,
-  })
-);
 const connection = mysql.createConnection({
   host: "127.0.0.1",
   user: "root",
   password: "",
   database: "panel",
 });
+
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["ajqwefk;efjweflkwfdacadfjadjkdqkasdadas"], 
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: false,
+  })
+);
 
 connection.connect((err) => {
   if (err) throw err;
@@ -52,17 +53,12 @@ app.post("/login", (req, res) => {
           req.session.isAdmin = false;
           res.render("dashboard", { 
             name: req.session.user, 
-            picture: result[0].id,  
             perms: 'User'
           });
         } 
         else if (result[0].admin === 1) {
           req.session.isAdmin = true;
-          res.render("admin", { 
-            name: req.session.user, 
-            picture: result[0].id,  
-            perms: 'Administrator'
-          });
+          res.redirect("admin");
         }
         else {
           return res.redirect("/");
@@ -77,24 +73,45 @@ app.post("/login", (req, res) => {
 });
 
   
-  
-
-
 app.get("/admin", (req, res) => {
    if (!req.session.logged)  return res.redirect("/");
    if (!req.session.isAdmin) return res.redirect("/");
-    connection.query("SELECT * FROM users", (error, results) => {
-      if (error) {
-        throw error;
-      } else {
-        res.render("admin", {
-          users: results,
-        });
-      }
-    });
-  }
-);
+    connection.query("SELECT * FROM users", (error, result) => {
+      res.render("admin", {
+        users: result, 
+        name: req.session.user, 
+        perms: 'Administrator'
+      })
+    })
+  })
 
+  app.get("/users", (req, res) => {
+    if (!req.session.logged)  return res.redirect("/");
+    if (!req.session.isAdmin) return res.redirect("/");
+     connection.query("SELECT * FROM users", (error, result) => {
+       res.render("users", {
+         users: result,
+         name: req.session.user, 
+         perms: 'Administrator'
+       })
+     })
+   })
+
+   app.get('/users/:id/editor', (req, res) => {
+    if (!req.session.logged)  return res.redirect("/");
+    if (!req.session.isAdmin) return res.redirect("/");
+    const id = req.params.id
+    connection.query(`SELECT * FROM users WHERE id = ${id}`, (error, result) => {
+      if(error) throw error
+      if (!result) return res.status(404).send('Nie znaleziono użytkownika');
+      res.render("panel", {
+        users: result,
+        name: req.session.user, 
+        perms: 'Administrator',
+      });
+    }) 
+  });
+  
 
 
 app.get("/logout", (req, res) => {
@@ -111,26 +128,18 @@ app.get('/api/gethash/:pass', async (req, res) => {
   return res.json({ pass, hash: sha256(escape(pass)).toString() })
 })
 
-app.get('/users/:id', (req, res) => {
-  if (!req.session.logged)  return res.redirect("/");
-  if (!req.session.isAdmin) return res.redirect("/");
-  const id = req.params.id
-  connection.query("SELECT * FROM users WHERE id = " + id, (error, results) => {
-    if(error) throw error
-    if (!results) return res.status(404).send('Nie znaleziono użytkownika');
-    res.render("panel", {
-      users: results,
-    });
-  }) 
-});
-
-app.post('/user/:id/delate', (req, res) => {
-  const id = req.body.id;
-  connection.query("DELETE FROM users WHERE id = " + id, (error) => {
-    if (error) throw error;
-    res.redirect('/admin');
+app.post('/users', (req, res) => {
+  const { username, password } = req.body;
+  const query = `
+    INSERT INTO users (username, password, admin)
+    VALUES (?, ?, 0)
+  `;
+  
+  connection.query(query, [username, sha256(escape(password)).toString()], (error) => {
+    res.redirect('/users');
   });
 });
+
 
 app.post('/user/:id/changeName', (req, res) => {
   const id = req.body.id;
@@ -142,17 +151,6 @@ app.post('/user/:id/changeName', (req, res) => {
 });
 
 
-// app.post('/user/:id', (req, res) => {
-//   const id = req.params.id;
-//   const action = req.body.action;
-//   if (action === 'delete') {
-//     // usuń użytkownika
-//   } else if (action === 'changeName') {
-//     const name = req.body.name;
-//     // zmień nazwę użytkownika
-//   }
-//   res.redirect('/');
-// });
 
 app.get("*", (req, res) => {
   return res.redirect("/");
