@@ -60,7 +60,7 @@
                                         <tr>
                                             <td><%= user.id %></td>
                                             <td><%= user.username %></td>
-                                            <td><%= user.admin %></td>
+                                            <td> <%= user.admin === 1 ? 'Admin' : 'User' %></td>
                                             <td><a href="/users/<%= user.id %>/editor"><button type="button" class="btn btn-outline-primary btn-sm">Edit</button></a></td>
                                         </tr>
                                     <% }); %>
@@ -72,17 +72,23 @@
                     <div class="col-sm-12 col-xl-6">
                         <div class="bg-secondary rounded h-100 p-4">
                             <h6 class="mb-4">Add new user</h6>
-                            <form method="POST" action="/users">
+                            <form method="POST" action="/users" enctype="multipart/form-data">
                                 <div class="mb-3">
-                                    <label class="form-label">Username</label>
-                                    <input type="text" class="form-control" name="username">
+                                  <label class="form-label">Username</label>
+                                  <input type="text" class="form-control" name="username" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" class="form-control" name="password">
-                                </div><br>
+                                  <label class="form-label">Password</label>
+                                  <input type="password" class="form-control" name="password" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label">Profile Picture</label>
+                                  <input class="form-control bg-dark" type="file" name="picture">
+                                </div>
+                                <br>
                                 <button type="submit" class="btn btn-primary">Add</button>
-                            </form>
+                              </form>
+                              
                             <br>
                             <span>New user will have permissions set to default user, if you want to change permissions go to editor</span>
                         </div>

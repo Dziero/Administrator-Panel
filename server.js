@@ -1,16 +1,31 @@
-var mysql = require("mysql");
-var express = require("express");
-var bodyParser = require("body-parser");
-var cookieSession = require("cookie-session");
-var app = express();
-var sha256 = require("crypto-js/sha256");
-var path = require('path')
+const mysql = require("mysql");
+const express = require("express");
+const bodyParser = require("body-parser");
+const cookieSession = require("cookie-session");
+const app = express();
+const sha256 = require("crypto-js/sha256");
+const path = require('path')
+const multer = require('multer');
 
 app.set("views", `${__dirname}/views`);
 app.set('view engine', 'ejs');
 
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(bodyParser.urlencoded({ extended: true }));
+
+
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, 'public/pictures');
+  },
+  filename: function(req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const filename = req.user ? req.user.id : 'unknown';
+    cb(null, filename + ext);
+  }
+});
+
+const upload = multer({ storage: storage });
 
 const connection = mysql.createConnection({
   host: "127.0.0.1",
@@ -112,6 +127,34 @@ app.get("/admin", (req, res) => {
     }) 
   });
   
+  app.post('/users/:id/editor/name', (req, res) => {
+    const id = req.params.id
+    const newName = req.body.newName
+    connection.query(`UPDATE users SET username = '${newName}' WHERE id = ${id}`) 
+    res.redirect(`/users/${id}/editor`)
+  });
+
+  app.post('/users/:id/editor/password', (req, res) => {
+    const id = req.params.id
+    const newPassword = req.body.password
+    connection.query(`UPDATE users SET password = '${sha256(escape(newPassword)).toString()}' WHERE id = ${id}`) 
+    res.redirect(`/users/${id}/editor`)
+  });
+
+  app.post('/users/:id/editor/NewPerms', (req, res) => {
+    const id = req.params.id
+    const perms = req.body.NewPerms
+    connection.query(`UPDATE users SET admin = ${perms === 'Admin' ? 1 : 0} WHERE id = ${id}`);
+    res.redirect(`/users/${id}/editor`)
+  });
+
+  app.post('/users/:id/editor/delete', (req, res) => {
+    const id = req.params.id;
+    connection.query('DELETE FROM users WHERE id = ?', [id], () => {
+      res.redirect(`/users`);
+    });
+  });
+  
 
 
 app.get("/logout", (req, res) => {
@@ -121,40 +164,17 @@ app.get("/logout", (req, res) => {
   return res.redirect("/");
 });
 
-app.get('/api/gethash/:pass', async (req, res) => {
-  const pass = req.params.pass
-  if (!req.session.logged) return res.status(403).json({ message: "Brak uprawnień" })
-  if (!pass) return res.status(400).json({ message: "Pass parameter not found" })
-  return res.json({ pass, hash: sha256(escape(pass)).toString() })
-})
 
-app.post('/users', (req, res) => {
+app.post('/users', upload.single('picture'), (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) return res.status(400).send('<h1>Username and password are required</h1>');
   const query = `
     INSERT INTO users (username, password, admin)
     VALUES (?, ?, 0)
   `;
   
-  connection.query(query, [username, sha256(escape(password)).toString()], (error) => {
+  connection.query(query, [username, sha256(escape(password)).toString()], () => {
     res.redirect('/users');
   });
 });
-
-
-app.post('/user/:id/changeName', (req, res) => {
-  const id = req.body.id;
-  const name = req.body.name;
-  connection.query(`UPDATE users SET username = '${name}' WHERE id = ${id}`, (error) => {
-    if (error) throw error;
-    res.redirect('/admin');
-  });
-});
-
-
-
-app.get("*", (req, res) => {
-  return res.redirect("/");
-});
-
-
 app.listen(3000);
