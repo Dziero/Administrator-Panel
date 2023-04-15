@@ -50,6 +50,6 @@ Remember to remove .env.example to .env
 [Cookie-session](https://github.com/expressjs/cookie-session#readme)\
 [crypto-js](https://github.com/brix/crypto-js#readme)\
 [Path](https://nodejs.org/docs/latest-v16.x/api/path.html)\
-[Multer](https://github.com/expressjs/multer#readme)
-[uuidv4](https://www.npmjs.com/package/uuidv4)
+[Multer](https://github.com/expressjs/multer#readme)\
+[uuidv4](https://www.npmjs.com/package/uuidv4)\
 [dotenv](https://www.npmjs.com/package/dotenv)
