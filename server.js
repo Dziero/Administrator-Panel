@@ -6,6 +6,7 @@ const app = express();
 const sha256 = require("crypto-js/sha256");
 const path = require("path");
 const multer = require("multer");
+const { v4: uuidv4 } = require("uuid");
 
 app.set("views", `${__dirname}/views`);
 app.set("view engine", "ejs");
@@ -13,17 +14,21 @@ app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+require("dotenv").config();
+
 const connection = mysql.createConnection({
-  host: "127.0.0.1",
-  user: "root",
-  password: "",
-  database: "panel",
+  host: process.env.HOST,
+  user: process.env.USER,
+  password: process.env.PASSWORD,
+  database: process.env.DATABASE,
 });
+
+const keys = [uuidv4()];
 
 app.use(
   cookieSession({
     name: "session",
-    keys: ["ajqwefk;efjweflkwfdacadfjadjkdqkasdadas"],
+    keys: keys,
     maxAge: 24 * 60 * 60 * 1000,
     secure: false,
   })
@@ -170,7 +175,7 @@ app.post(
       return res
         .status(400)
         .send("<h1>Username and password are required</h1>");
-        
+
     const queryFindUser = `
       SELECT * FROM users WHERE username = ?
     `;
@@ -178,39 +183,34 @@ app.post(
       INSERT INTO users (username, password, admin) VALUES (?, ?, 0)
     `;
 
-    connection.query(
-      queryFindUser,
-      [username],
-      (error, results) => {
-        if (error) {
-          return res.status(500).send("Error checking if user exists");
-        }
-
-        if (results.length > 0) {
-          return res.status(400).send("User already exists");
-        }
-
-        connection.query(
-          queryInsertUser,
-          [username, sha256(escape(password)).toString()],
-          (error, results) => {
-            if (error) {
-              return res.status(500).send("Error creating user");
-            }
-
-            const user_id = results.insertId + 1;
-            req.session.user_id = user_id;
-            if (req.file) {
-              req.file.filename = user_id + path.extname(req.file.originalname);
-            }
-            res.redirect("/users");
-          }
-        );
+    connection.query(queryFindUser, [username], (error, results) => {
+      if (error) {
+        return res.status(500).send("Error checking if user exists");
       }
-    );
+
+      if (results.length > 0) {
+        return res.status(400).send("User already exists");
+      }
+
+      connection.query(
+        queryInsertUser,
+        [username, sha256(escape(password)).toString()],
+        (error, results) => {
+          if (error) {
+            return res.status(500).send("Error creating user");
+          }
+
+          const user_id = results.insertId + 1;
+          req.session.user_id = user_id;
+          if (req.file) {
+            req.file.filename = user_id + path.extname(req.file.originalname);
+          }
+          res.redirect("/users");
+        }
+      );
+    });
   }
 );
-
 
 app.get("/tasks", (req, res) => {
   if (!req.session.logged) return res.redirect("/");
