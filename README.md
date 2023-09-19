@@ -4,7 +4,7 @@
 Install packages with npm
 
 ```
-  cd User-Managment-System
+  cd Administrator-Panel
   npm install 
 ```
     
